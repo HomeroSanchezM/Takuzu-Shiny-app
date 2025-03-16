@@ -22,7 +22,7 @@ server <- function(input, output) {
   
  
   output$rules <- renderText({  # Affichage des rules
-    " Règles du jeu  <\n>
+    " Règles du jeu  \n
 — chaque case de la grille doit être remplie avec un 0 ou un 1 ;  \n
 — chaque ligne et chaque colonne doivent contenir autant de 0 que de 1  \n
 — il est interdit d’avoir trois 0 ou trois 1 consécutifs dans une ligne ou une colonne ;  \n
