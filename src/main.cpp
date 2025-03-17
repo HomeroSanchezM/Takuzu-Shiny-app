@@ -113,3 +113,52 @@ void display_matrix(std::vector<std::vector<int>> matrix) {
     }
 }
 
+
+// [[Rcpp::export]]
+std::vector<std::vector<int>>  init_grille_2x2 (int size) {
+    //int matrice[size][size];
+    std::vector<std::vector<int>> matrice(size, std::vector<int>(size));
+    for (int i = 0; i < size; i++) {
+        for (int j = 0; j < size; j++) {
+            if (i<=1 and j<=1) {
+                matrice[i][j] = rand() % 2;
+            } else {
+                matrice[i][j] = 0;
+            }
+
+            //std::cout << matrice[i][j] << " ";
+        }
+        //std::cout << std::endl;
+    }
+    //std::cout << std::endl;
+    return matrice;
+}
+
+//num_de_colones correspond a la position d'agrandement, au premier tour num_de_collone = 2
+// [[Rcpp::export]]
+std::vector<std::vector<int>>  remplisage_recur (std::vector<std::vector<int>> matrix,int num_de_collone) {
+    //Remplir les cases a droite
+    for (int i = 0; i < num_de_collone; i++) {
+        if (matrix[i][num_de_collone-2] == matrix[i][num_de_collone-1]) {
+            if (matrix[i][num_de_collone-1] == 0) {
+                matrix[i][num_de_collone] = 1;
+            } else {
+                matrix[i][num_de_collone] = 0;
+            }
+        } else {
+            matrix[i][num_de_collone] = rand() % 2;
+        }
+    }
+    //remplir les cases de en_bas
+    for (int j = 0; j < num_de_collone+1; j++) {
+        if (matrix[num_de_collone-2][j] == matrix[num_de_collone-1][j]) {
+            if (matrix[num_de_collone-1][j] == 0) {
+                matrix[num_de_collone-1][j] = 1;
+            } else {
+                matrix[num_de_collone-1][j] = 0;
+            }
+        } else {
+            matrix[num_de_collone-1][j] = rand() % 2;
+        }
+    }
+}
