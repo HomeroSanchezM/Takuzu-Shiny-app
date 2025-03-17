@@ -137,8 +137,9 @@ std::vector<std::vector<int>>  init_grille_2x2 (int size) {
 //num_de_colones correspond a la position d'agrandement, au premier tour num_de_collone = 2
 // [[Rcpp::export]]
 std::vector<std::vector<int>>  remplisage_recur (std::vector<std::vector<int>> matrix,int num_de_collone) {
-
-    while ( num_de_collone!=matrix.size()) {
+/*
+    std::vector<std::vector<int>> result (matrix.size(), std::vector<int>(matrix.size()));
+    if ( num_de_collone<matrix.size()) {
         //Remplir les cases a droite
         for (int i = 0; i < num_de_collone; i++) {
             if (matrix[i][num_de_collone-2] == matrix[i][num_de_collone-1]) {
@@ -163,7 +164,36 @@ std::vector<std::vector<int>>  remplisage_recur (std::vector<std::vector<int>> m
                 matrix[num_de_collone-1][j] = rand() % 2;
             }
         }
-        remplisage_recur(matrix,num_de_collone+1);
+        result = remplisage_recur(matrix,num_de_collone+1);
     }
-    return matrix;
+    return result;
+}
+*/
+    if (num_de_collone >= matrix.size()) {
+        return matrix;  // Cas de base : si num_de_collone atteint la taille, on retourne la matrice complète
+    }
+
+    // Copie de la matrice pour éviter de modifier l'originale
+    std::vector<std::vector<int>> result = matrix;
+
+    // Remplir les cases à droite
+    for (int i = 0; i < num_de_collone; i++) {
+        if (result[i][num_de_collone - 2] == result[i][num_de_collone - 1]) {
+            result[i][num_de_collone] = (result[i][num_de_collone - 1] == 0) ? 1 : 0;
+        } else {
+            result[i][num_de_collone] = rand() % 2;
+        }
+    }
+
+    // Remplir les cases en bas
+    for (int j = 0; j < num_de_collone + 1; j++) {
+        if (result[num_de_collone - 2][j] == result[num_de_collone - 1][j]) {
+            result[num_de_collone][j] = (result[num_de_collone - 1][j] == 0) ? 1 : 0;
+        } else {
+            result[num_de_collone][j] = rand() % 2;
+        }
+    }
+
+    // Appel récursif avec la matrice mise à jour
+    return remplisage_recur(result, num_de_collone + 1);
 }
