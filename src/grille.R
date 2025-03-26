@@ -30,7 +30,7 @@ ui <- fluidPage(
       background-color: white;
     }
     .btn-user {
-      background-color: #6baed6;
+      background-color: #c5e8fc;
     }
   ")
 )
@@ -69,8 +69,9 @@ server <- function(input, output, session) {
       lapply(1:ncol(M), function(j) {
         observeEvent(input[[paste0("btn_", i, "_", j)]], {
           current_grid <- hidden_grid()
-          if (is.na(current_grid[i, j]) && !user_clicks$clicks[i, j]) {
-            user_clicks$clicks[i, j] <- TRUE
+          if (is.na(current_grid[i, j])) {
+            # cycle 0 click → 1 click → 2 click → 0 click → ...
+            user_clicks$clicks[i, j] <- (user_clicks$clicks[i, j] + 1) %% 3
           }
         })
       })
@@ -98,8 +99,8 @@ server <- function(input, output, session) {
       buttons <- lapply(1:n_cols, function(j) {
         value <- grid_data[i, j]
         if (is.na(value)) {
-          if (user_clicks$clicks[i, j]) {
-            # Case masquée cliquée - affiche 1
+          if (user_clicks$clicks[i, j] == 1 ) {
+            # Case masquée cliquée une fois - affiche 1
             actionButton(
               inputId = paste0("btn_", i, "_", j),
               label = "1",
@@ -107,8 +108,17 @@ server <- function(input, output, session) {
               width = "50px",
               style = "margin: 2px; height: 50px;"
             )
+          }else if(user_clicks$clicks[i, j] == 2){
+            # Case masquée cliquée une fois - affiche 0
+            actionButton(
+              inputId = paste0("btn_", i, "_", j),
+              label = "0",
+              class = "btn-user",
+              width = "50px",
+              style = "margin: 2px; height: 50px;"
+            )
           } else {
-            # Case masquée
+            # Case masquée, sans click ou clique 3 fois - afiche ?
             actionButton(
               inputId = paste0("btn_", i, "_", j),
               label = "?",
