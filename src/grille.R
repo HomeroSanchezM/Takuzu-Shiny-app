@@ -14,7 +14,8 @@ ui <- fluidPage(
         tags$li("Pas trois 0 ou 1 côte à côte"),
         tags$li("Pas deux lignes/colonnes identiques")
       ),
-      actionButton("reveal", "Révéler la solution")
+      actionButton("reveal", "Révéler la solution"),
+      actionButton("regenerate", "Regénérer la grille")
     ),
     mainPanel(
       uiOutput("gridUI")
@@ -31,10 +32,11 @@ ui <- fluidPage(
   ")
 )
 
-server <- function(input, output) {
+server <- function(input, output, session) {
   
+  hidden_grid <- reactiveVal()
   # Créer une version masquée de la grille (50% visible)
-  hidden_grid <- reactive({
+  make_hidden_grid <- function() {
     # Créer une copie de la matrice
     grid <- M
     
@@ -46,25 +48,32 @@ server <- function(input, output) {
     hidden_grid <- matrix(NA, nrow = nrow(grid), ncol = ncol(grid))
     hidden_grid[show_indices] <- grid[show_indices]
     
-    hidden_grid
+    return(hidden_grid)
+  }
+  
+  # Initialisation
+  hidden_grid(make_hidden_grid())
+  
+  # Afficher la régénération de la grille
+   observeEvent(input$regenerate, {
+    hidden_grid(make_hidden_grid())
   })
   
   # Afficher la solution complète quand on clique sur le bouton
   observeEvent(input$reveal, {
-    output$gridUI <- renderUI({
-      create_grid(M, reveal = TRUE)
+    hidden_grid(M)
     })
-  })
+  
   
   # Fonction pour créer la grille UI
-  create_grid <- function(grid_data, reveal = FALSE) {
+  create_grid <- function(grid_data) {
     n_rows <- nrow(grid_data)
     n_cols <- ncol(grid_data)
     
     rows <- lapply(1:n_rows, function(i) {
       buttons <- lapply(1:n_cols, function(j) {
         value <- grid_data[i, j]
-        if (is.na(value) && !reveal) {
+        if (is.na(value)) {
           # Case masquée
           actionButton(
             inputId = paste0("btn_", i, "_", j),
