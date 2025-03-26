@@ -137,38 +137,7 @@ std::vector<std::vector<int>>  init_grille_2x2 (int size) {
 //num_de_colones correspond a la position d'agrandement, au premier tour num_de_collone = 2
 // [[Rcpp::export]]
 std::vector<std::vector<int>>  remplisage_recur (std::vector<std::vector<int>> matrix,int num_de_collone) {
-/*
-    std::vector<std::vector<int>> result (matrix.size(), std::vector<int>(matrix.size()));
-    if ( num_de_collone<matrix.size()) {
-        //Remplir les cases a droite
-        for (int i = 0; i < num_de_collone; i++) {
-            if (matrix[i][num_de_collone-2] == matrix[i][num_de_collone-1]) {
-                if (matrix[i][num_de_collone-1] == 0) {
-                    matrix[i][num_de_collone] = 1;
-                } else {
-                    matrix[i][num_de_collone] = 0;
-                }
-            } else {
-                matrix[i][num_de_collone] = rand() % 2;
-            }
-        }
-        //remplir les cases de en_bas
-        for (int j = 0; j < num_de_collone+1; j++) {
-            if (matrix[num_de_collone-2][j] == matrix[num_de_collone-1][j]) {
-                if (matrix[num_de_collone-1][j] == 0) {
-                    matrix[num_de_collone-1][j] = 1;
-                } else {
-                    matrix[num_de_collone-1][j] = 0;
-                }
-            } else {
-                matrix[num_de_collone-1][j] = rand() % 2;
-            }
-        }
-        result = remplisage_recur(matrix,num_de_collone+1);
-    }
-    return result;
-}
-*/
+
     if (num_de_collone >= matrix.size()) {
         return matrix;  // Cas de base : si num_de_collone atteint la taille, on retourne la matrice complète
     }
@@ -178,9 +147,12 @@ std::vector<std::vector<int>>  remplisage_recur (std::vector<std::vector<int>> m
 
     // Remplir les cases à droite
     for (int i = 0; i < num_de_collone; i++) {
-        if (result[i][num_de_collone - 2] == result[i][num_de_collone - 1]) {
+        if (i<=2 and result[i][num_de_collone - 2] == result[i][num_de_collone - 1]) {
             result[i][num_de_collone] = (result[i][num_de_collone - 1] == 0) ? 1 : 0;
-        } else {
+        } else if (result[i-2][num_de_collone]!=result[i-1][num_de_collone] and result[i][num_de_collone - 2] == result[i][num_de_collone - 1] ) {
+            result[i][num_de_collone] = (result[i][num_de_collone - 1] == 0) ? 1 : 0;
+        } //a completer
+        else {
             result[i][num_de_collone] = rand() % 2;
         }
     }
