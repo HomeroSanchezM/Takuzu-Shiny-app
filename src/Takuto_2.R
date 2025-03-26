@@ -250,7 +250,21 @@ test.OO_11<-function (t,i,M) {
   } 
 }
 
-# Sauvegarder la matrice M dans un fichier RDS
-saveRDS(M, "matrice_M.rds")
+
+# Exclure la dernière ligne et la dernière colonne
+M_final <- M[1:size, 1:size]
+
+# Afficher la matrice finale (sans la dernière ligne et colonne)
+print(M_final)
+
+# Sauvegarder la matrice finale dans un fichier RDS
+saveRDS(M_final, "src/matrice_M.rds")
+
+# Charger la matrice M depuis le fichier sauvegardé
+M_fich <- readRDS("src/matrice_M.rds")
+
+print(M_fich)
+
+
 
 

@@ -1,171 +1,135 @@
-#include <iostream>
-#include <vector>
 #include <Rcpp.h>
+#include <vector>
+#include <algorithm>
+#include <random>
+
 using namespace Rcpp;
 
+void testL_V(int t, int i, IntegerMatrix& M) {
+  int size = M.nrow() - 1;
+  if (t > 2) {
+    IntegerVector col = M(_, i);
+    IntegerVector sub_col = col[Range(t-2, t-1)];
+    if (sum(sub_col) == 0) {
+      M(t, i) = 1;
+    }
+    if (t < size && !IntegerVector::is_na(M(t+1, i))) {
+      IntegerVector neighbors = IntegerVector::create(M(t-1, i), M(t+1, i));
+      if (sum(neighbors) == 0) {
+        M(t, i) = 1;
+      }
+      if (sum(neighbors) == 2) {
+        M(t, i) = 0;
+      }
+    }
+    if (sum(sub_col) == 2) {
+      M(t, i) = 0;
+    }
+  }
+}
 
+void testL_H(int t, int i, IntegerMatrix& M) {
+  int size = M.ncol() - 1;
+  if (i > 2) {
+    IntegerVector row = M(t, _);
+    IntegerVector sub_row = row[Range(i-2, i-1)];
+    if (sum(sub_row) == 0) {
+      M(t, i) = 1;
+    }
+    if (i < size && !IntegerVector::is_na(M(t, i+1))) {
+      IntegerVector neighbors = IntegerVector::create(M(t, i-1), M(t, i+1));
+      if (sum(neighbors) == 0) {
+        M(t, i) = 1;
+      }
+      if (sum(neighbors) == 2) {
+        M(t, i) = 0;
+      }
+    }
+    if (sum(sub_row) == 2) {
+      M(t, i) = 0;
+    }
+  }
+}
 
-// [[Rcpp::export]]
-int add(int x, int y, int z) {
-    int sum = x + y + z;
-    return sum;
+int fill(IntegerVector V, int size) {
+  int n1 = sum(V == 1);
+  int n0 = sum(V == 0);
+  if (n1 >= size / 2) return 0;
+  if (n0 >= size / 2) return 1;
+  IntegerVector ref;
+  for (int i = 0; i < (size / 2 - n1); ++i) ref.push_back(1);
+  for (int i = 0; i < (size / 2 - n0); ++i) ref.push_back(0);
+  std::random_shuffle(ref.begin(), ref.end());
+  return ref[0];
+}
+
+void End_testL(int j, IntegerMatrix& M, int size) {
+  if (sum(M(j, _)) != size / 2) {
+    for (int i = j; i <= size; ++i) M(j, i) = NA_INTEGER;
+    ligne(j, 0, M, size);
+  }
+}
+
+void End_testC(int j, IntegerMatrix& M, int size) {
+  if (sum(M(_, j)) != size / 2) {
+    for (int i = j + 1; i <= size; ++i) M(i, j) = NA_INTEGER;
+    colonne(j, 0, M, size);
+  }
+}
+
+void ligne(int x, int a, IntegerMatrix& M, int size) {
+  if (x > 2) {
+    for (int i = x + a; i <= size; ++i) {
+      testL_V(x, i, M);
+    }
+  }
+  for (int i = x + a; i <= size; ++i) {
+    if (i <= 2) {
+      M(x, i) = fill(M(x, _), size);
+    } else {
+      if (IntegerVector::is_na(M(x, i))) {
+        testL_H(x, i, M);
+        if (IntegerVector::is_na(M(x, i))) {
+          M(x, i) = fill(M(x, _), size);
+        }
+      }
+    }
+  }
+}
+
+void colonne(int x, int a, IntegerMatrix& M, int size) {
+  if (x > 2) {
+    for (int i = x + 1 + a; i <= size; ++i) {
+      testL_H(i, x, M);
+    }
+  }
+  for (int i = x + 1 + a; i <= size; ++i) {
+    if (i <= 2) {
+      M(i, x) = fill(M(_, x), size);
+    } else {
+      if (IntegerVector::is_na(M(i, x))) {
+        testL_V(i, x, M);
+        if (IntegerVector::is_na(M(i, x))) {
+          M(i, x) = fill(M(_, x), size);
+        }
+      }
+    }
+  }
 }
 
 // [[Rcpp::export]]
-std::vector<std::vector<int>>  init_grille (int size) {
-    //int matrice[size][size];
-    std::vector<std::vector<int>> matrice(size, std::vector<int>(size));
-    for (int i = 0; i < size; i++) {
-        for (int j = 0; j < size; j++) {
-            matrice[i][j] = rand() % 2;
-            std::cout << matrice[i][j] << " ";
-        }
-        std::cout << std::endl;
+IntegerMatrix generateGrid(int size) {
+  IntegerMatrix M(size + 1, size + 1);
+  std::fill(M.begin(), M.end(), NA_INTEGER);
+  for (int j = 1; j <= size; ++j) {
+    if (j <= size - 1) {
+      ligne(j, 0, M, size);
+      End_testL(j, M, size);
+      colonne(j, 0, M, size);
+      End_testC(j, M, size);
+    } else {
+      ligne(j, 0, M, size);
     }
-    std::cout << std::endl;
-    return matrice;
-}
-
-//verification des ligne en premier
-// [[Rcpp::export]]
-std::vector<std::vector<int>>  verif_regle_1 (std::vector<std::vector<int>> matrix) {
-    int j = 0 ;
-    for (int i = 0; i < matrix.size(); i++) {
-        if (i>1) {
-            //std::cout <<"On rentre dans le if(j>2) pour la colone"<<i<<std::endl;
-            if (matrix[i][j]+matrix[i-1][j]+matrix[i-2][j] == 0) {
-                matrix[i][j] = 1;
-            }
-            if (matrix[i][j]+matrix[i-1][j]+matrix[i-2][j] == 3) {
-                matrix[i][j] = 0;
-            }
-        }
-        for (int j = 0; j < matrix[i].size(); j++) {
-            if (j>1) {
-                //std::cout <<"On rentre dans le if(j>2) pour la ligne"<<j<<std::endl;
-                if (matrix[i][j]+matrix[i][j-1]+matrix[i][j-2] == 0) {
-                    matrix[i][j] = 1;
-                }
-                if (matrix[i][j]+matrix[i][j-1]+matrix[i][j-2] == 3) {
-                    matrix[i][j] = 0;
-                }
-            }
-
-        }
-    }
-    return matrix;
-}
-
-//verification des colone en premier
-// [[Rcpp::export]]
-std::vector<std::vector<int>>  verif_regle_1_version2 (std::vector<std::vector<int>> matrix) {
-    int i = 0 ;
-    for (int j = 0; j < matrix.size(); j++) {
-        if (j>1) {
-            //std::cout <<"On rentre dans le if(j>2) pour la colone"<<i<<std::endl;
-            if (matrix[i][j]+matrix[i][j-1]+matrix[i][j-2] == 0) {
-                matrix[i][j] = 1;
-            }
-            if (matrix[i][j]+matrix[i][j-1]+matrix[i][j-1] == 3) {
-                matrix[i][j] = 0;
-            }
-        }
-        for (int i = 0; i < matrix.size(); i++) {
-            if (i>1) {
-                //std::cout <<"On rentre dans le if(j>2) pour la ligne"<<j<<std::endl;
-                if (matrix[i][j]+matrix[i-1][j]+matrix[i-1][j] == 0) {
-                    matrix[i][j] = 1;
-                }
-                if (matrix[i][j]+matrix[i-1][j]+matrix[i-2][j] == 3) {
-                    matrix[i][j] = 0;
-                }
-            }
-
-        }
-    }
-    return matrix;
-}
-
-/*
-std::vector<std::vector<int>>  verif_regle_1_colones (std::vector<std::vector<int>> matrix, int j) {
-    for (int i = 0; i < matrix.size(); i++) {
-        if (i>2) {
-            if (matrix[i][j]+matrix[i-1][j]+matrix[i-2][j] == 0) {
-                matrix[i][j] = 1;
-                verif_regle_1_ligne(matrix, i);
-            }
-            if (matrix[i][j]+matrix[i-1][j]+matrix[i-2][j] == 3) {
-                matrix[i][j] = 0;
-                verif_regle_1_ligne(matrix, i);
-            }
-        }
-
-}
-*/
-
-// [[Rcpp::export]]
-void display_matrix(std::vector<std::vector<int>> matrix) {
-    for (int i = 0; i < matrix.size(); i++) {
-        for (int j = 0; j < matrix[i].size(); j++) {
-            std::cout << matrix[i][j] << " ";
-        }
-        std::cout << std::endl;
-    }
-}
-
-
-// [[Rcpp::export]]
-std::vector<std::vector<int>>  init_grille_2x2 (int size) {
-    //int matrice[size][size];
-    std::vector<std::vector<int>> matrice(size, std::vector<int>(size));
-    for (int i = 0; i < size; i++) {
-        for (int j = 0; j < size; j++) {
-            if (i<=1 and j<=1) {
-                matrice[i][j] = rand() % 2;
-            } else {
-                matrice[i][j] = 0;
-            }
-
-            //std::cout << matrice[i][j] << " ";
-        }
-        //std::cout << std::endl;
-    }
-    //std::cout << std::endl;
-    return matrice;
-}
-
-//num_de_colones correspond a la position d'agrandement, au premier tour num_de_collone = 2
-// [[Rcpp::export]]
-std::vector<std::vector<int>>  remplisage_recur (std::vector<std::vector<int>> matrix,int num_de_collone) {
-
-    if (num_de_collone >= matrix.size()) {
-        return matrix;  // Cas de base : si num_de_collone atteint la taille, on retourne la matrice complète
-    }
-
-    // Copie de la matrice pour éviter de modifier l'originale
-    std::vector<std::vector<int>> result = matrix;
-
-    // Remplir les cases à droite
-    for (int i = 0; i < num_de_collone; i++) {
-        if (i<=2 and result[i][num_de_collone - 2] == result[i][num_de_collone - 1]) {
-            result[i][num_de_collone] = (result[i][num_de_collone - 1] == 0) ? 1 : 0;
-        } else if (result[i-2][num_de_collone]!=result[i-1][num_de_collone] and result[i][num_de_collone - 2] == result[i][num_de_collone - 1] ) {
-            result[i][num_de_collone] = (result[i][num_de_collone - 1] == 0) ? 1 : 0;
-        } //a completer
-        else {
-            result[i][num_de_collone] = rand() % 2;
-        }
-    }
-
-    // Remplir les cases en bas
-    for (int j = 0; j < num_de_collone + 1; j++) {
-        if (result[num_de_collone - 2][j] == result[num_de_collone - 1][j]) {
-            result[num_de_collone][j] = (result[num_de_collone - 1][j] == 0) ? 1 : 0;
-        } else {
-            result[num_de_collone][j] = rand() % 2;
-        }
-    }
-
-    // Appel récursif avec la matrice mise à jour
-    return remplisage_recur(result, num_de_collone + 1);
+  }
+  return M(Range(0, size - 1), Range(0, size - 1));
 }

@@ -3,58 +3,61 @@ library(shiny)
 # Charger la matrice M depuis le fichier sauvegardé
 M <- readRDS("matrice_M.rds")
 
-# Exclure la 11ème ligne et la 11ème colonne
-M <- M[1:10, 1:10]
-
 ui <- fluidPage(
   titlePanel("Jeu Takuzu"),
-  uiOutput("matrice_boutons"),
   sidebarLayout(
     sidebarPanel(
-      textOutput("rules"), 
-      numericInput("nRows", "Nombre de lignes :", 10, min = 1, max = 10),
-      numericInput("nCols", "Nombre de colonnes :", 10, min = 1, max = 10),
-      actionButton("generate", "Générer la grille")
+      h3("Règles du jeu"),
+      tags$ul(
+        tags$li("Chaque case doit contenir 0 ou 1"),
+        tags$li("Autant de 0 que de 1 par ligne/colonne"),
+        tags$li("Pas trois 0 ou 1 consécutifs"),
+        tags$li("Pas deux lignes/colonnes identiques")
+      ),
+      actionButton("generate", "Afficher la grille")
     ),
     mainPanel(
-      uiOutput("buttonGrid")
+      uiOutput("gridUI")
     )
   )
 )
 
 server <- function(input, output) {
   
-  output$rules <- renderText({
-    " Règles du jeu  \n
-— chaque case de la grille doit être remplie avec un 0 ou un 1 ;  \n
-— chaque ligne et chaque colonne doivent contenir autant de 0 que de 1  \n
-— il est interdit d’avoir trois 0 ou trois 1 consécutifs dans une ligne ou une colonne ;  \n
-— deux lignes ou deux colonnes identiques sont interdites dans la même grille.  \n
- \n
-Stratégies pour résoudre un Takuzu  \n
-— délecter les triples : si deux 0 ou deux 1 se suivent, la case suivante doit forcément
-contenir l’autre chiffre ;  \n
-— équilibrer les 0 et les 1 : une ligne ou une colonne ne peut pas contenir plus de la
-moitié des cases d’un même chiffre.  \n
-— comparer les lignes et colonnes déjà complétées : si une ligne ou une colonne est
-presque remplie et qu’une autre est similaire, il faut ajuster les chiffres pour éviter
-les doublons.  \n "  
+  # Réactive pour stocker la matrice
+  grid_data <- reactiveVal(M)
+  
+  # Observer le bouton de génération
+  observeEvent(input$generate, {
+    grid_data(M)
   })
   
-  output$matrice_boutons <- renderUI({
-    req(input$generate) # On doit appuyer sur "Générer la grille" pour la première fois
+  # Génération de la grille de boutons
+  output$gridUI <- renderUI({
+    req(input$generate) # Attendre que le bouton soit cliqué
     
-    # Créer une matrice de boutons en utilisant les valeurs de M
-    boutons <- lapply(1:100, function(i) {
-      row <- ceiling(i / 10)
-      col <- ifelse(i %% 10 == 0, 10, i %% 10)
-      value <- M[row, col]
-      actionButton(inputId = paste("bouton", i, sep = "_"), label = as.character(value))
+    M <- grid_data()
+    n_rows <- nrow(M)
+    n_cols <- ncol(M)
+    
+    # Créer une liste de lignes
+    rows <- lapply(1:n_rows, function(i) {
+      # Créer une ligne de boutons
+      buttons <- lapply(1:n_cols, function(j) {
+        value <- M[i, j]
+        actionButton(
+          inputId = paste0("btn_", i, "_", j),
+          label = as.character(value),
+          width = "50px",
+          style = "margin: 2px; height: 50px; font-weight: bold;"
+        )
+      })
+      # Retourner la ligne dans un div
+      div(style = "display: flex;", buttons)
     })
     
-    # Organiser les boutons en grille
-    tagList(div(class = "btn-grid",
-                lapply(split(boutons, ceiling(seq_along(boutons) / 10), div, class = "button-row"))))
+    # Retourner toutes les lignes
+    div(style = "margin-top: 20px;", rows)
   })
 }
 
