@@ -15,7 +15,8 @@ ui <- fluidPage(
         tags$li("Pas deux lignes/colonnes identiques")
       ),
       actionButton("reveal", "Révéler la solution"),
-      actionButton("regenerate", "Regénérer la grille")
+      actionButton("regenerate", "Regénérer la grille"),
+      actionButton("verify", "Vérifier")  # Nouveau bouton
     ),
     mainPanel(
       uiOutput("gridUI")
@@ -32,36 +33,34 @@ ui <- fluidPage(
     .btn-user {
       background-color: #c5e8fc;
     }
+    .btn-correct {
+      background-color: #a1d99b;  /* Vert pour les réponses correctes */
+    }
   ")
 )
 
 server <- function(input, output, session) {
   
   hidden_grid <- reactiveVal()
-  
-  #enregistrement des clicks
   user_clicks <- reactiveValues(clicks = NULL)
+  verification <- reactiveValues(checked = FALSE)  # Pour suivre si la vérification a été faite
+  
   # Créer une version masquée de la grille (50% visible)
   make_hidden_grid <- function() {
-    # Créer une copie de la matrice
     grid <- M
-    
-    # Sélection aléatoire de 50% des cases à montrer
     total_cells <- length(grid)
     show_indices <- sample(1:total_cells, size = round(total_cells * 0.5))
     
-    # Masquer les autres cases
     hidden_grid <- matrix(NA, nrow = nrow(grid), ncol = ncol(grid))
     hidden_grid[show_indices] <- grid[show_indices]
     
     return(hidden_grid)
   }
   
-  # Initialisation grille masqué
+  # Initialisation
   hidden_grid(make_hidden_grid())
-  
-  # Initialisation grille de click
-  user_clicks$clicks <- matrix(FALSE, nrow = nrow(M), ncol = ncol(M))
+  user_clicks$clicks <- matrix(0, nrow = nrow(M), ncol = ncol(M))
+  verification$checked <- FALSE
   
   # Gestion des clics sur les boutons masqués
   observe({
@@ -70,25 +69,30 @@ server <- function(input, output, session) {
         observeEvent(input[[paste0("btn_", i, "_", j)]], {
           current_grid <- hidden_grid()
           if (is.na(current_grid[i, j])) {
-            # cycle 0 click → 1 click → 2 click → 0 click → ...
             user_clicks$clicks[i, j] <- (user_clicks$clicks[i, j] + 1) %% 3
+            verification$checked <- FALSE  # Réinitialiser la vérification quand on modifie
           }
         })
       })
     })
   })
   
-  # Afficher la régénération de la grille
-   observeEvent(input$regenerate, {
-    hidden_grid(make_hidden_grid())
-    user_clicks$clicks <- matrix(FALSE, nrow = nrow(M), ncol = ncol(M))
+  # Vérification des réponses
+  observeEvent(input$verify, {
+    verification$checked <- TRUE
   })
   
-  # Afficher la solution complète quand on clique sur le bouton
+  # Régénération de la grille
+  observeEvent(input$regenerate, {
+    hidden_grid(make_hidden_grid())
+    user_clicks$clicks <- matrix(0, nrow = nrow(M), ncol = ncol(M))
+    verification$checked <- FALSE
+  })
+  
+  # Révéler la solution complète
   observeEvent(input$reveal, {
     hidden_grid(M)
-    })
-  
+  })
   
   # Fonction pour créer la grille UI
   create_grid <- function(grid_data) {
@@ -98,45 +102,37 @@ server <- function(input, output, session) {
     rows <- lapply(1:n_rows, function(i) {
       buttons <- lapply(1:n_cols, function(j) {
         value <- grid_data[i, j]
-        if (is.na(value)) {
-          if (user_clicks$clicks[i, j] == 1 ) {
-            # Case masquée cliquée une fois - affiche 1
-            actionButton(
-              inputId = paste0("btn_", i, "_", j),
-              label = "1",
-              class = "btn-user",
-              width = "50px",
-              style = "margin: 2px; height: 50px;"
-            )
-          }else if(user_clicks$clicks[i, j] == 2){
-            # Case masquée cliquée une fois - affiche 0
-            actionButton(
-              inputId = paste0("btn_", i, "_", j),
-              label = "0",
-              class = "btn-user",
-              width = "50px",
-              style = "margin: 2px; height: 50px;"
-            )
-          } else {
-            # Case masquée, sans click ou clique 3 fois - afiche ?
-            actionButton(
-              inputId = paste0("btn_", i, "_", j),
-              label = "?",
-              class = "btn-hidden",
-              width = "50px",
-              style = "margin: 2px; height: 50px;"
-            )
-          }
+        user_value <- NULL
+        if (user_clicks$clicks[i, j] == 1) user_value <- 1
+        if (user_clicks$clicks[i, j] == 2) user_value <- 0
+        
+        # Déterminer la classe CSS
+        btn_class <- if (!is.na(value)) {
+          "btn-visible"
+        } else if (verification$checked && !is.na(user_value)) {
+          if (user_value == M[i, j]) "btn-correct" else "btn-user"
         } else {
-          # Case visible
-          actionButton(
-            inputId = paste0("btn_", i, "_", j),
-            label = as.character(value),
-            class = "btn-visible",
-            width = "50px",
-            style = "margin: 2px; height: 50px; font-weight: bold;"
-          )
+          if (user_clicks$clicks[i, j] > 0) "btn-user" else "btn-hidden"
         }
+        
+        # Déterminer le label
+        label <- if (!is.na(value)) {
+          as.character(value)
+        } else if (user_clicks$clicks[i, j] == 1) {
+          "1"
+        } else if (user_clicks$clicks[i, j] == 2) {
+          "0"
+        } else {
+          "?"
+        }
+        
+        actionButton(
+          inputId = paste0("btn_", i, "_", j),
+          label = label,
+          class = btn_class,
+          width = "50px",
+          style = "margin: 2px; height: 50px; font-weight: bold;"
+        )
       })
       div(style = "display: flex;", buttons)
     })
@@ -144,7 +140,7 @@ server <- function(input, output, session) {
     div(style = "margin-top: 20px;", rows)
   }
   
-  # Afficher la grille initiale (50% masquée)
+  # Afficher la grille
   output$gridUI <- renderUI({
     create_grid(hidden_grid())
   })
