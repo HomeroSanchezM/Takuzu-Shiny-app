@@ -29,12 +29,18 @@ ui <- fluidPage(
     .btn-visible {
       background-color: white;
     }
+    .btn-user {
+      background-color: #6baed6;
+    }
   ")
 )
 
 server <- function(input, output, session) {
   
   hidden_grid <- reactiveVal()
+  
+  #enregistrement des clicks
+  user_clicks <- reactiveValues(clicks = NULL)
   # Créer une version masquée de la grille (50% visible)
   make_hidden_grid <- function() {
     # Créer une copie de la matrice
@@ -51,12 +57,30 @@ server <- function(input, output, session) {
     return(hidden_grid)
   }
   
-  # Initialisation
+  # Initialisation grille masqué
   hidden_grid(make_hidden_grid())
+  
+  # Initialisation grille de click
+  user_clicks$clicks <- matrix(FALSE, nrow = nrow(M), ncol = ncol(M))
+  
+  # Gestion des clics sur les boutons masqués
+  observe({
+    lapply(1:nrow(M), function(i) {
+      lapply(1:ncol(M), function(j) {
+        observeEvent(input[[paste0("btn_", i, "_", j)]], {
+          current_grid <- hidden_grid()
+          if (is.na(current_grid[i, j]) && !user_clicks$clicks[i, j]) {
+            user_clicks$clicks[i, j] <- TRUE
+          }
+        })
+      })
+    })
+  })
   
   # Afficher la régénération de la grille
    observeEvent(input$regenerate, {
     hidden_grid(make_hidden_grid())
+    user_clicks$clicks <- matrix(FALSE, nrow = nrow(M), ncol = ncol(M))
   })
   
   # Afficher la solution complète quand on clique sur le bouton
@@ -74,14 +98,25 @@ server <- function(input, output, session) {
       buttons <- lapply(1:n_cols, function(j) {
         value <- grid_data[i, j]
         if (is.na(value)) {
-          # Case masquée
-          actionButton(
-            inputId = paste0("btn_", i, "_", j),
-            label = "?",
-            class = "btn-hidden",
-            width = "50px",
-            style = "margin: 2px; height: 50px;"
-          )
+          if (user_clicks$clicks[i, j]) {
+            # Case masquée cliquée - affiche 1
+            actionButton(
+              inputId = paste0("btn_", i, "_", j),
+              label = "1",
+              class = "btn-user",
+              width = "50px",
+              style = "margin: 2px; height: 50px;"
+            )
+          } else {
+            # Case masquée
+            actionButton(
+              inputId = paste0("btn_", i, "_", j),
+              label = "?",
+              class = "btn-hidden",
+              width = "50px",
+              style = "margin: 2px; height: 50px;"
+            )
+          }
         } else {
           # Case visible
           actionButton(
